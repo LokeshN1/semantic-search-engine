@@ -1,9 +1,11 @@
-# Python
+# Python bytecode files
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
+
+# Distribution / packaging
 build/
 develop-eggs/
 dist/
@@ -20,7 +22,7 @@ wheels/
 .installed.cfg
 *.egg
 
-# Virtual Environment
+# Virtual environments
 .env
 .venv
 env/
@@ -35,16 +37,24 @@ venv.bak/
 *.swp
 *.swo
 .DS_Store
+Thumbs.db
 
-# Project specific
+# Project specific models and data
 /backend/models/*
 !/backend/models/.gitkeep
 /data/*
 !/data/.gitkeep
+!/data/sample*.csv
+!/data/sample*.json
+
+# Model files and large binaries
 *.pkl
 *.npy
 *.pt
 *.bin
+*.model
+*.joblib
+*.pickle
 
 # Logs
 *.log
@@ -59,57 +69,15 @@ yarn-error.log*
 # Streamlit
 .streamlit/
 
-# Byte-compiled / optimized / DLL files
-__pycache__/
-*.py[cod]
-*$py.class
-
-# Distribution / packaging
-*.egg-info/
-*.egg
-
 # Unit test / coverage reports
 htmlcov/
 .coverage
 .coverage.*
 .pytest_cache/
 
-# Environments
-.env
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
+backend/data_loader.py
 
-# IDEs and editors
-.idea/
-.vscode/
-*.swp
-*.swo
+# ignore CLI interface file for search engine
+semantic_search.py
 
-# Model files and large directories
-backend/models/*
-!backend/models/.gitkeep
-*.pkl
-*.model
-*.npy
-
-# Data files
-data/*
-!data/.gitkeep
-
-# OS specific files
-.DS_Store
-Thumbs.db
-
-# Deployment
-.env
-*.log
-
-# Model files that might be too large for Git
-/backend/models/**/*.bin
-/backend/models/**/*.joblib
-/backend/models/**/*.pickle
-/backend/models/**/*.pkl 
+README
