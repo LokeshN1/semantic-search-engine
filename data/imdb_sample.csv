@@ -1,0 +1,31 @@
+id,review,sentiment,review_length,word_count,rating,review_date
+1,"This movie is a masterpiece. The acting, direction, and cinematography are top-notch.",positive,91,14,9.2,2023-05-15
+2,"I've never been so bored watching a film. Complete waste of time and money.",negative,76,14,2.3,2023-06-10
+3,"The plot twists kept me engaged throughout the entire movie. Highly recommended!",positive,83,13,9.0,2023-04-18
+4,"While the concept is interesting, the execution falls flat. Poor character development.",negative,84,13,3.5,2023-07-22
+5,"A beautiful story with strong performances. The soundtrack perfectly complements each scene.",positive,90,13,8.8,2023-03-27
+6,"The dialogue is cringe-worthy and the special effects look cheap. Disappointing.",negative,78,12,2.7,2023-08-01
+7,"An emotional rollercoaster that stays with you long after watching. Incredible storytelling.",positive,86,12,9.3,2023-05-02
+8,"This is easily one of the worst films I've seen this year. Confusing plot and bad acting.",negative,91,16,2.0,2023-06-20
+9,"A refreshing take on a classic genre. The director's vision shines through every frame.",positive,84,13,8.9,2023-07-01
+10,"I couldn't connect with any of the characters. The pacing was too slow and tedious.",negative,81,14,3.0,2023-05-12
+11,"An absolute must-watch that deserves all the critical acclaim it has received.",positive,77,12,9.5,2023-04-08
+12,"The movie tries to be clever but ends up being pretentious and overly complicated.",negative,80,13,2.8,2023-07-18
+13,"Brilliant performances by the entire cast. Each scene is meticulously crafted.",positive,76,12,9.4,2023-05-25
+14,"I kept checking my watch throughout the movie. Nothing interesting happens.",negative,75,12,2.6,2023-06-15
+15,"A powerful narrative that tackles important social issues while remaining entertaining.",positive,87,13,9.1,2023-04-30
+16,"The plot holes are so massive you could drive a truck through them. Illogical mess.",negative,81,14,2.4,2023-08-10
+17,"The director's attention to detail is evident in every scene. Visually stunning.",positive,79,12,9.2,2023-03-10
+18,"Predictable from start to finish with clichéd dialogue and one-dimensional characters.",negative,86,13,3.1,2023-06-07
+19,"A heartwarming story that reminds us of the importance of family and community.",positive,83,13,9.0,2023-05-05
+20,"This movie doesn't know what it wants to be. Inconsistent tone and messy storyline.",negative,81,13,2.9,2023-07-14
+21,"One of the most innovative films I've seen in years. Breaks new ground in the genre.",positive,83,14,9.6,2023-04-12
+22,"The movie drags on for way too long with unnecessary scenes that add nothing.",negative,78,12,3.0,2023-07-29
+23,"A cinematic achievement that raises the bar for all future films in this genre.",positive,82,13,9.7,2023-03-20
+24,"The characters make decisions that make no logical sense just to advance the plot.",negative,79,13,2.7,2023-06-18
+25,"I was completely immersed from the opening scene to the end credits. Outstanding.",positive,80,12,9.5,2023-05-08
+26,"A pretentious art film disguised as mainstream entertainment. Boring and self-indulgent.",negative,84,13,2.2,2023-08-15
+27,"The perfect blend of action, drama, and humor. I couldn't ask for more.",positive,73,12,9.4,2023-04-04
+28,"The movie feels like it was edited by someone who had never seen the original footage.",negative,85,14,2.5,2023-06-25
+29,"A thoughtful exploration of complex themes that never feels heavy-handed.",positive,78,11,9.1,2023-05-18
+30,"I've seen student films with better production value. Amateur hour from start to finish.",negative,84,14,2.3,2023-07-05
