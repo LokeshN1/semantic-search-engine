@@ -42,10 +42,14 @@ Thumbs.db
 # Project specific models and data
 /backend/models/*
 !/backend/models/.gitkeep
+
+# Ignore data files
 /data/*
+
+# But include sample files and .gitkeep file
 !/data/.gitkeep
-!/data/sample*.csv
-!/data/sample*.json
+!/data/imdb_sample.csv
+!/data/movie_reviews_sample.csv
 
 # Model files and large binaries
 *.pkl
@@ -79,5 +83,8 @@ backend/data_loader.py
 
 # ignore CLI interface file for search engine
 semantic_search.py
+
+# ignore run.py file for running the project
+run.py
 
 README
