@@ -1,0 +1,37 @@
+services:
+  # Backend API service
+  - type: web
+    name: search-engine-api
+    runtime: python
+    region: oregon
+    plan: free
+    buildCommand: chmod +x build.sh && ./build.sh
+    startCommand: cd backend && uvicorn app:app --host=0.0.0.0 --port=$PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.9.12
+      - key: DATA_DIR
+        value: /data
+      - key: PYTHONPATH
+        value: /
+    disk:
+      name: search-data
+      mountPath: /data
+      sizeGB: 1
+
+  # Frontend Streamlit service
+  - type: web
+    name: search-engine-frontend
+    runtime: python
+    region: oregon
+    plan: free
+    buildCommand: pip install -r requirements-deploy.txt
+    startCommand: cd frontend && streamlit run streamlit_app.py --server.port=$PORT --server.address=0.0.0.0
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.9.12
+      - key: API_URL
+        fromService:
+          type: web
+          name: search-engine-api
+          envVarKey: RENDER_EXTERNAL_URL 
