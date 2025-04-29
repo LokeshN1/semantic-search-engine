@@ -11,13 +11,9 @@ services:
       - key: PYTHON_VERSION
         value: 3.9.12
       - key: DATA_DIR
-        value: /data
+        value: ./data
       - key: PYTHONPATH
         value: /
-    disk:
-      name: search-data
-      mountPath: /data
-      sizeGB: 1
 
   # Frontend Streamlit service
   - type: web
@@ -34,4 +30,4 @@ services:
         fromService:
           type: web
           name: search-engine-api
-          envVarKey: RENDER_EXTERNAL_URL 
+          envVarKey: RENDER_EXTERNAL_URL
