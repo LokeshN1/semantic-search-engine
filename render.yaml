@@ -7,6 +7,8 @@ services:
     plan: free
     buildCommand: chmod +x build.sh && ./build.sh
     startCommand: cd backend && uvicorn app:app --host=0.0.0.0 --port=$PORT
+    healthCheckPath: /
+    autoDeploy: true
     envVars:
       - key: PYTHON_VERSION
         value: 3.9.12
@@ -14,6 +16,8 @@ services:
         value: ./data
       - key: PYTHONPATH
         value: /
+      - key: MODEL_CACHE_TIME
+        value: 3600
 
   # Frontend Streamlit service
   - type: web
@@ -23,6 +27,7 @@ services:
     plan: free
     buildCommand: pip install -r requirements-deploy.txt
     startCommand: cd frontend && streamlit run streamlit_app.py --server.port=$PORT --server.address=0.0.0.0
+    autoDeploy: true
     envVars:
       - key: PYTHON_VERSION
         value: 3.9.12
@@ -31,3 +36,5 @@ services:
           type: web
           name: search-engine-api
           envVarKey: RENDER_EXTERNAL_URL
+      - key: STREAMLIT_SERVER_MAX_UPLOAD_SIZE
+        value: 20

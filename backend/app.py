@@ -54,6 +54,7 @@ available_datasets = {}
 user_uploaded_datasets = set()  # Track which datasets were uploaded by users
 DATA_DIR = os.environ.get("DATA_DIR", os.path.join(os.path.dirname(os.path.dirname(__file__)), "data"))
 MODELS_DIR = os.environ.get("MODELS_DIR", os.path.join(os.path.dirname(__file__), "models"))
+MODEL_CACHE_TIME = int(os.environ.get("MODEL_CACHE_TIME", 3600))  # Default: 1 hour
 
 # Create directories if they don't exist
 os.makedirs(DATA_DIR, exist_ok=True)
@@ -169,6 +170,7 @@ async def root():
     return {
         "name": "Semantic Search Engine API",
         "version": "1.0.0",
+        "status": "healthy",
         "endpoints": [
             {"path": "/search", "method": "GET", "description": "Search documents"},
             {"path": "/datasets", "method": "GET", "description": "List available datasets"},

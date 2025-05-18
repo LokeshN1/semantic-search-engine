@@ -12,6 +12,10 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 # API Base URL - use environment variable if available
 API_URL = os.environ.get("API_URL", "http://localhost:8000")
 
+# Remove trailing slash if present to ensure urljoin works correctly
+if API_URL.endswith('/'):
+    API_URL = API_URL[:-1]
+
 # ------------------ Page Configuration ------------------
 st.set_page_config(
     page_title="Semantic Search Engine",
