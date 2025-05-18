@@ -22,11 +22,16 @@ mkdir -p ${DATA_DIR:-./data}
 mkdir -p backend/models
 mkdir -p backend/embeddings
 
-# Copy sample data to data directory if exists
+# Copy sample data to data directory if exists and if DATA_DIR is different from ./data
 echo "Setting up data files..."
-if [ -d "data" ] && [ "$(ls -A data/*.csv 2>/dev/null)" ]; then
-    cp data/*.csv ${DATA_DIR:-./data}/
-    echo "Sample data copied to data directory"
+if [ -d "data" ] && [ -n "$(ls -A data/*.csv 2>/dev/null)" ]; then
+    # Only copy if DATA_DIR is not the default ./data location
+    if [ "${DATA_DIR}" != "./data" ] && [ "${DATA_DIR}" != "data" ]; then
+        cp data/*.csv ${DATA_DIR}/
+        echo "Sample data copied to ${DATA_DIR} directory"
+    else
+        echo "Using sample data in default data directory"
+    fi
 else
     echo "No sample data found or data directory empty"
 fi
