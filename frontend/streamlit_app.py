@@ -50,7 +50,7 @@ def check_api_connection():
     
     for backend_url in backends:
         try:
-            st.toast(f"Trying to connect to {backend_url}...")
+            # st.toast(f"Trying to connect to {backend_url}...")
             response = requests.get(f"{backend_url}", timeout=5)
             if response.status_code == 200:
                 # If successful, update the global API_URL to the working URL
@@ -90,10 +90,30 @@ def get_available_datasets():
 def refresh_datasets():
     try:
         endpoint = f"{API_URL}/datasets/rescan"
-        response = requests.post(endpoint)
+        
+        with st.spinner("Refreshing datasets..."):
+            response = requests.post(endpoint)
+        
         if response.status_code == 200:
             st.sidebar.success("✅ Datasets refreshed successfully!")
-            st.rerun()
+            # Update datasets without forcing a page reload
+            global available_datasets
+            available_datasets = get_available_datasets()
+            
+            # We'll reload the page with a redirect instead of using rerun
+            st.sidebar.info("Please reload the page to see updated datasets")
+            html_reload = """
+            <script>
+                setTimeout(function() {
+                    window.location.href = window.location.href;
+                }, 2000);
+            </script>
+            """
+            st.sidebar.markdown(html_reload, unsafe_allow_html=True)
+            
+            # Clear any upload success state
+            if 'upload_success' in st.session_state:
+                st.session_state.upload_success = False
         else:
             st.sidebar.error("❌ Failed to refresh datasets")
     except Exception as e:
@@ -117,7 +137,16 @@ def delete_dataset(dataset_name):
         
         if response.status_code == 200:
             st.sidebar.success(f"✅ Dataset '{dataset_name}' deleted successfully!")
-            st.rerun()
+            # Use direct page reload instead of st.rerun()
+            html_reload = """
+            <script>
+                setTimeout(function() {
+                    window.location.href = window.location.href;
+                }, 2000);
+            </script>
+            """
+            st.sidebar.markdown(html_reload, unsafe_allow_html=True)
+            st.sidebar.info("Reloading page...")
         else:
             error_msg = response.json().get("detail", "Unknown error")
             st.sidebar.error(f"❌ Delete failed: {error_msg}")
@@ -126,64 +155,44 @@ def delete_dataset(dataset_name):
 
 # Dataset Section
 st.sidebar.markdown("---")
-col1, col2 = st.sidebar.columns([3, 1])
-with col1:
-    st.markdown("### 🗂️ Datasets")
-with col2:
-    if st.button("🔄", help="Refresh dataset list"):
-        refresh_datasets()
+st.sidebar.subheader("🗂️ Datasets")
 
 # Get the datasets
 available_datasets = get_available_datasets()
 dataset_options = list(available_datasets.keys())
 
+# Add refresh button with cleaner layout
+refresh_col1, refresh_col2 = st.sidebar.columns([4, 1])
+with refresh_col2:
+    if st.button("🔄", help="Refresh dataset list"):
+        html_reload = """
+        <script>
+            window.location.href = window.location.href;
+        </script>
+        """
+        st.markdown(html_reload, unsafe_allow_html=True)
+        with refresh_col1:
+            st.info("Refreshing...")
+
+# Dataset selection
 if dataset_options:
-    # Separate datasets into sample and user-uploaded
-    sample_datasets = [ds for ds in dataset_options if not available_datasets[ds].get("user_uploaded", False)]
-    user_datasets = [ds for ds in dataset_options if available_datasets[ds].get("user_uploaded", False)]
+    selected_dataset = st.sidebar.selectbox(
+        "Select Dataset",
+        dataset_options,
+        format_func=lambda x: f"{x} ({available_datasets[x]['record_count']} records)"
+    )
     
-    # Show dataset category headers
-    if sample_datasets:
-        st.sidebar.markdown("#### Sample Datasets")
+    # Check if the dataset was uploaded by the user
+    is_user_uploaded = available_datasets[selected_dataset].get("user_uploaded", False)
     
-    # Create a radio button for sample datasets if any exist
-    selected_sample = None
-    if sample_datasets:
-        selected_sample = st.sidebar.radio(
-            "Select a sample dataset:",
-            sample_datasets,
-            format_func=lambda x: f"{x} ({available_datasets[x]['record_count']} records)",
-            label_visibility="collapsed"
-        )
-    
-    # Show user datasets header if any exist
-    if user_datasets:
-        st.sidebar.markdown("#### Your Uploaded Datasets")
-    
-    # Create a radio button for user datasets if any exist
-    selected_user = None
-    if user_datasets:
-        selected_user = st.sidebar.radio(
-            "Select a user dataset:",
-            user_datasets,
-            format_func=lambda x: f"{x} ({available_datasets[x]['record_count']} records)",
-            label_visibility="collapsed"
-        )
-        
-        # Add delete button for selected user dataset
-        if selected_user:
-            if st.sidebar.button(f"🗑️ Delete '{selected_user}'"):
-                delete_dataset(selected_user)
-    
-    # Determine the final selected dataset
-    if selected_sample and selected_user:
-        # Default to selected_user if both are selected
-        selected_dataset = selected_user
-        st.sidebar.info(f"Using dataset: {selected_user} (switch to {selected_sample} by selecting it)")
-    elif selected_user:
-        selected_dataset = selected_user
+    # Only show delete button for user-uploaded datasets
+    if is_user_uploaded:
+        delete_col1, delete_col2 = st.sidebar.columns([3, 2])
+        with delete_col2:
+            if st.button("🗑️ Delete", help=f"Delete {selected_dataset}"):
+                delete_dataset(selected_dataset)
     else:
-        selected_dataset = selected_sample
+        st.sidebar.caption("ℹ️ Sample dataset (cannot be deleted)")
 else:
     st.sidebar.warning("⚠️ No datasets available. Upload a dataset first.")
     selected_dataset = None
@@ -191,11 +200,14 @@ else:
 # Embedding model selection
 st.sidebar.markdown("---")
 st.sidebar.subheader("🧠 Search Options")
-embedding_type = st.sidebar.selectbox(
-    "Embedding Model",
-    ["bert", "tfidf", "word2vec"],
-    help="Choose the model to generate document embeddings."
-)
+
+search_col1, search_col2 = st.sidebar.columns([3, 1])
+with search_col1:
+    embedding_type = st.selectbox(
+        "Embedding Model",
+        ["bert", "tfidf", "word2vec"],
+        help="Choose the model to generate document embeddings."
+    )
 
 # Number of results
 top_n = st.sidebar.slider(
@@ -212,37 +224,49 @@ st.sidebar.subheader("⬆️ Upload New Dataset")
 # Display success message if upload was successful in last run
 if st.session_state.upload_success:
     st.sidebar.success(f"✅ Dataset '{st.session_state.last_uploaded_dataset}' uploaded successfully!")
-    if st.sidebar.button("🔄 Refresh Datasets"):
-        st.session_state.upload_success = False  # Reset the state
-        refresh_datasets()  # This will refresh available datasets
     
-uploaded_file = st.sidebar.file_uploader("Upload a CSV or JSON file", type=["csv", "json"])
-dataset_name = st.sidebar.text_input("Dataset Name (alphanumeric)", "")
-
-if uploaded_file and st.sidebar.button("Upload Dataset"):
-    if not dataset_name.isalnum():
-        st.sidebar.error("Dataset name must be alphanumeric only!")
-    else:
-        try:
-            files = {"file": uploaded_file}
-            data = {"dataset_name": dataset_name}
-            
-            endpoint = f"{API_URL}/upload"
-
-            with st.spinner("Uploading..."):
-                upload_response = requests.post(endpoint, files=files, data=data)
-
-            if upload_response.status_code == 200:
-                # Store in session state instead of refreshing immediately
-                st.session_state.upload_success = True
-                st.session_state.last_uploaded_dataset = dataset_name
-                st.rerun()  # This rerun will display the success message
+    col1, col2 = st.sidebar.columns([2, 2])
+    with col2:
+        if st.button("View Dataset"):
+            st.session_state.upload_success = False
+            html_reload = """
+            <script>
+                window.location.href = window.location.href;
+            </script>
+            """
+            st.markdown(html_reload, unsafe_allow_html=True)
+else:  # Only show upload options if not in success state
+    with st.sidebar.form("upload_form"):
+        uploaded_file = st.file_uploader("Upload CSV or JSON", type=["csv", "json"])
+        dataset_name = st.text_input("Dataset Name (alphanumeric)")
+        submit_button = st.form_submit_button("Upload Dataset")
+        
+        if submit_button:
+            if not uploaded_file:
+                st.error("❌ Please select a file to upload")
+            elif not dataset_name:
+                st.error("❌ Please enter a dataset name")
+            elif not dataset_name.isalnum():
+                st.error("❌ Dataset name must be alphanumeric only!")
             else:
-                error_msg = upload_response.json().get("detail", "Unknown error")
-                st.sidebar.error(f"❌ Upload failed: {error_msg}")
+                try:
+                    files = {"file": uploaded_file}
+                    data = {"dataset_name": dataset_name}
+                    
+                    endpoint = f"{API_URL}/upload"
 
-        except Exception as e:
-            st.sidebar.error(f"Error uploading dataset: {e}")
+                    with st.spinner("Uploading..."):
+                        upload_response = requests.post(endpoint, files=files, data=data)
+
+                    if upload_response.status_code == 200:
+                        st.session_state.upload_success = True
+                        st.session_state.last_uploaded_dataset = dataset_name
+                        st.rerun()  # Safe to use here since we're inside a form submit
+                    else:
+                        error_msg = upload_response.json().get("detail", "Unknown error")
+                        st.error(f"❌ Upload failed: {error_msg}")
+                except Exception as e:
+                    st.error(f"Error uploading dataset: {e}")
 
 # ------------------ Main Content Section ------------------
 st.title("🔍 Semantic Search Engine")
