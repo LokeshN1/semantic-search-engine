@@ -9,13 +9,6 @@ from urllib.parse import urljoin
 # Add backend directory to path for imports if running directly
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-# API Base URL - use environment variable if available
-API_URL = os.environ.get("API_URL", "http://localhost:8000")
-
-# Remove trailing slash if present to ensure urljoin works correctly
-if API_URL.endswith('/'):
-    API_URL = API_URL[:-1]
-
 # ------------------ Page Configuration ------------------
 st.set_page_config(
     page_title="Semantic Search Engine",
@@ -23,6 +16,20 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
 )
+
+# API Base URL - use environment variable if available, with fallbacks
+API_URL = os.environ.get("API_URL", "https://search-engine-api-gx3x.onrender.com")
+
+# For local development
+if API_URL.lower() == "local" or API_URL.lower() == "localhost":
+    API_URL = "http://localhost:8000"
+
+# Show what API URL we're using (temporarily for debugging)
+api_debug = st.empty()
+
+# Remove trailing slash if present to ensure urljoin works correctly
+if API_URL.endswith('/'):
+    API_URL = API_URL[:-1]
 
 # ------------------ Sidebar Section ------------------
 st.sidebar.title("🔍 Search Engine Controls")
