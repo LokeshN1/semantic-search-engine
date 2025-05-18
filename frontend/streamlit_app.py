@@ -4,7 +4,6 @@ import pandas as pd
 import os
 import sys
 import time
-from urllib.parse import urljoin
 
 # Add backend directory to path for imports if running directly
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
@@ -24,28 +23,47 @@ API_URL = os.environ.get("API_URL", "https://search-engine-api-gx3x.onrender.com
 if API_URL.lower() == "local" or API_URL.lower() == "localhost":
     API_URL = "http://localhost:8000"
 
-# Show what API URL we're using (temporarily for debugging)
-api_debug = st.empty()
-
-# Remove trailing slash if present to ensure urljoin works correctly
+# Remove trailing slash if present
 if API_URL.endswith('/'):
     API_URL = API_URL[:-1]
+
+# Show what URL we're using (debug only)
+api_debug = st.empty()
 
 # ------------------ Sidebar Section ------------------
 st.sidebar.title("🔍 Search Engine Controls")
 
 
 def check_api_connection():
-    try:
-        response = requests.get(f"{API_URL}", timeout=2)
-        return response.status_code == 200
-    except requests.RequestException:
-        return False
+    global API_URL  # Declare the global variable at the beginning of the function
+    
+    # Hard-coded backend URL - use both the environment variable and explicit URL
+    backends = [
+        API_URL,  # Try environment variable first
+        "https://search-engine-api-gx3x.onrender.com",  # Explicit URL as fallback
+        "http://localhost:8000"  # Local development fallback
+    ]
+    
+    for backend_url in backends:
+        try:
+            st.toast(f"Trying to connect to {backend_url}...")
+            response = requests.get(f"{backend_url}", timeout=5)
+            if response.status_code == 200:
+                # If successful, update the global API_URL to the working URL
+                API_URL = backend_url
+                return True
+        except requests.RequestException as e:
+            st.toast(f"Connection error: {str(e)[:50]}...")
+            continue
+    
+    return False
 
 # API Connection Check
-if not check_api_connection():
+connection_status = check_api_connection()
+if not connection_status:
     st.sidebar.error("❌ Cannot connect to API server.")
-    st.sidebar.info("Make sure to run the server:\n\ncd backend && uvicorn app:app --reload")
+    st.sidebar.info(f"Tried connecting to: {API_URL}")
+    st.sidebar.info("Make sure both services are deployed correctly on Render")
     st.stop()
 else:
     # Create a persistent success message
@@ -55,17 +73,20 @@ else:
 # Fetch available datasets
 def get_available_datasets():
     try:
-        response = requests.get(urljoin(API_URL, "/datasets"))
+        endpoint = f"{API_URL}/datasets"
+        response = requests.get(endpoint)
         if response.status_code == 200:
             return response.json().get("datasets", {})
         else:
             return {}
-    except:
+    except Exception as e:
+        st.toast(f"Error fetching datasets: {str(e)[:50]}...")
         return {}
 
 def refresh_datasets():
     try:
-        response = requests.post(urljoin(API_URL, "/datasets/rescan"))
+        endpoint = f"{API_URL}/datasets/rescan"
+        response = requests.post(endpoint)
         if response.status_code == 200:
             st.sidebar.success("✅ Datasets refreshed successfully!")
             st.rerun()
@@ -76,7 +97,8 @@ def refresh_datasets():
 
 def delete_dataset(dataset_name):
     try:
-        response = requests.delete(urljoin(API_URL, f"/dataset/{dataset_name}"))
+        endpoint = f"{API_URL}/dataset/{dataset_name}"
+        response = requests.delete(endpoint)
         if response.status_code == 200:
             st.sidebar.success(f"✅ Dataset '{dataset_name}' deleted successfully!")
             st.rerun()
@@ -122,24 +144,10 @@ else:
 # Embedding model selection
 st.sidebar.markdown("---")
 st.sidebar.subheader("🧠 Search Options")
-embedding_options = ["tfidf", "word2vec"]
-embedding_help = "Choose the model to generate document embeddings. BERT is disabled on free tier."
-
-# Try to connect to API to check if BERT is enabled
-try:
-    response = requests.get(f"{API_URL}", timeout=2)
-    if response.status_code == 200:
-        api_info = response.json()
-        if api_info.get("bert_disabled") != True:  # API will add this field in future
-            embedding_options.append("bert")
-            embedding_help = "Choose the model to generate document embeddings."
-except:
-    pass  # Keep the default options if we can't connect
-
 embedding_type = st.sidebar.selectbox(
     "Embedding Model",
-    embedding_options,
-    help=embedding_help
+    ["bert", "tfidf", "word2vec"],
+    help="Choose the model to generate document embeddings."
 )
 
 # Number of results
@@ -164,9 +172,11 @@ if uploaded_file and st.sidebar.button("Upload Dataset"):
         try:
             files = {"file": uploaded_file}
             data = {"dataset_name": dataset_name}
+            
+            endpoint = f"{API_URL}/upload"
 
             with st.spinner("Uploading..."):
-                upload_response = requests.post(urljoin(API_URL, "/upload"), files=files, data=data)
+                upload_response = requests.post(endpoint, files=files, data=data)
 
             if upload_response.status_code == 200:
                 st.sidebar.success(f"✅ Dataset '{dataset_name}' uploaded successfully!")
@@ -195,7 +205,9 @@ if st.button("Search", disabled=not selected_dataset) and query:
                 "embedding": embedding_type,
                 "top_n": top_n
             }
-            response = requests.get(urljoin(API_URL, "/search"), params=params)
+            
+            endpoint = f"{API_URL}/search"
+            response = requests.get(endpoint, params=params)
 
             if response.status_code == 200:
                 result_data = response.json()

@@ -28,8 +28,6 @@ services:
       - key: WEB_CONCURRENCY
         value: "1"
       - key: PRELOAD_MODELS
-        value: "false"
-      - key: DISABLE_BERT
         value: "true"
       - key: MAX_WORKERS
         value: "1"
