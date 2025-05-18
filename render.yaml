@@ -5,8 +5,8 @@ services:
     runtime: python
     region: oregon
     plan: free
-    buildCommand: chmod +x build.sh && ./build.sh
-    startCommand: cd backend && uvicorn app:app --host=0.0.0.0 --port=$PORT
+    buildCommand: chmod +x build.sh && ./build.sh || { echo "Build failed"; exit 1; }
+    startCommand: source .venv/bin/activate && cd backend && python -m uvicorn app:app --host=0.0.0.0 --port=$PORT
     envVars:
       - key: PYTHON_VERSION
         value: 3.9.12
@@ -21,8 +21,8 @@ services:
     runtime: python
     region: oregon
     plan: free
-    buildCommand: pip install -r requirements-deploy.txt
-    startCommand: cd frontend && streamlit run streamlit_app.py --server.port=$PORT --server.address=0.0.0.0
+    buildCommand: pip install --upgrade pip && pip install -r requirements-deploy.txt
+    startCommand: source .venv/bin/activate && cd frontend && streamlit run streamlit_app.py --server.port=$PORT --server.address=0.0.0.0
     envVars:
       - key: PYTHON_VERSION
         value: 3.9.12

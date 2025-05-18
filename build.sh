@@ -1,6 +1,9 @@
 #!/bin/bash
 # Build script for Render deployment
 
+# Upgrade pip first
+python -m pip install --upgrade pip
+
 # Install dependencies
 pip install -r requirements-deploy.txt
 
