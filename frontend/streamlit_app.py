@@ -8,6 +8,10 @@ import time
 # Add backend directory to path for imports if running directly
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
+# Initialize session state
+if 'upload_success' not in st.session_state:
+    st.session_state.upload_success = False
+
 # ------------------ Page Configuration ------------------
 st.set_page_config(
     page_title="Semantic Search Engine",
@@ -97,8 +101,20 @@ def refresh_datasets():
 
 def delete_dataset(dataset_name):
     try:
+        # Confirm we're deleting the right dataset
         endpoint = f"{API_URL}/dataset/{dataset_name}"
+        
+        # First check if this dataset exists and is user-uploaded
+        check_endpoint = f"{API_URL}/dataset/{dataset_name}/is-user-uploaded"
+        check_response = requests.get(check_endpoint)
+        
+        if check_response.status_code != 200 or not check_response.json().get("user_uploaded", False):
+            st.sidebar.error(f"❌ Cannot delete dataset '{dataset_name}'. Only user-uploaded datasets can be deleted.")
+            return
+        
+        # If it's confirmed to be a user-uploaded dataset, proceed with deletion
         response = requests.delete(endpoint)
+        
         if response.status_code == 200:
             st.sidebar.success(f"✅ Dataset '{dataset_name}' deleted successfully!")
             st.rerun()
@@ -122,21 +138,52 @@ available_datasets = get_available_datasets()
 dataset_options = list(available_datasets.keys())
 
 if dataset_options:
-    selected_dataset = st.sidebar.selectbox(
-        "Select Dataset",
-        dataset_options,
-        format_func=lambda x: f"{x} ({available_datasets[x]['record_count']} records)"
-    )
+    # Separate datasets into sample and user-uploaded
+    sample_datasets = [ds for ds in dataset_options if not available_datasets[ds].get("user_uploaded", False)]
+    user_datasets = [ds for ds in dataset_options if available_datasets[ds].get("user_uploaded", False)]
     
-    # Check if the dataset was uploaded by the user
-    is_user_uploaded = available_datasets[selected_dataset].get("user_uploaded", False)
+    # Show dataset category headers
+    if sample_datasets:
+        st.sidebar.markdown("#### Sample Datasets")
     
-    # Only show delete button for user-uploaded datasets
-    if is_user_uploaded:
-        if st.sidebar.button("🗑️ Delete Selected Dataset"):
-            delete_dataset(selected_dataset)
+    # Create a radio button for sample datasets if any exist
+    selected_sample = None
+    if sample_datasets:
+        selected_sample = st.sidebar.radio(
+            "Select a sample dataset:",
+            sample_datasets,
+            format_func=lambda x: f"{x} ({available_datasets[x]['record_count']} records)",
+            label_visibility="collapsed"
+        )
+    
+    # Show user datasets header if any exist
+    if user_datasets:
+        st.sidebar.markdown("#### Your Uploaded Datasets")
+    
+    # Create a radio button for user datasets if any exist
+    selected_user = None
+    if user_datasets:
+        selected_user = st.sidebar.radio(
+            "Select a user dataset:",
+            user_datasets,
+            format_func=lambda x: f"{x} ({available_datasets[x]['record_count']} records)",
+            label_visibility="collapsed"
+        )
+        
+        # Add delete button for selected user dataset
+        if selected_user:
+            if st.sidebar.button(f"🗑️ Delete '{selected_user}'"):
+                delete_dataset(selected_user)
+    
+    # Determine the final selected dataset
+    if selected_sample and selected_user:
+        # Default to selected_user if both are selected
+        selected_dataset = selected_user
+        st.sidebar.info(f"Using dataset: {selected_user} (switch to {selected_sample} by selecting it)")
+    elif selected_user:
+        selected_dataset = selected_user
     else:
-        st.sidebar.info("Sample datasets are not deletable")
+        selected_dataset = selected_sample
 else:
     st.sidebar.warning("⚠️ No datasets available. Upload a dataset first.")
     selected_dataset = None
@@ -162,6 +209,13 @@ top_n = st.sidebar.slider(
 st.sidebar.markdown("---")
 st.sidebar.subheader("⬆️ Upload New Dataset")
 
+# Display success message if upload was successful in last run
+if st.session_state.upload_success:
+    st.sidebar.success(f"✅ Dataset '{st.session_state.last_uploaded_dataset}' uploaded successfully!")
+    if st.sidebar.button("🔄 Refresh Datasets"):
+        st.session_state.upload_success = False  # Reset the state
+        refresh_datasets()  # This will refresh available datasets
+    
 uploaded_file = st.sidebar.file_uploader("Upload a CSV or JSON file", type=["csv", "json"])
 dataset_name = st.sidebar.text_input("Dataset Name (alphanumeric)", "")
 
@@ -179,8 +233,10 @@ if uploaded_file and st.sidebar.button("Upload Dataset"):
                 upload_response = requests.post(endpoint, files=files, data=data)
 
             if upload_response.status_code == 200:
-                st.sidebar.success(f"✅ Dataset '{dataset_name}' uploaded successfully!")
-                st.rerun()
+                # Store in session state instead of refreshing immediately
+                st.session_state.upload_success = True
+                st.session_state.last_uploaded_dataset = dataset_name
+                st.rerun()  # This rerun will display the success message
             else:
                 error_msg = upload_response.json().get("detail", "Unknown error")
                 st.sidebar.error(f"❌ Upload failed: {error_msg}")

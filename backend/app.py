@@ -138,6 +138,9 @@ def scan_datasets():
     global available_datasets
     
     available_datasets = {}
+    # List of preset sample datasets that should be recognized but not be deletable
+    sample_datasets = ["imdb_sample", "movie_reviews_sample"]
+    
     for file in os.listdir(DATA_DIR):
         if file.endswith('.csv') or file.endswith('.json'):
             dataset_name = os.path.splitext(file)[0]
@@ -151,6 +154,11 @@ def scan_datasets():
                     "record_count": record_count,
                     "columns": list(df.columns)
                 }
+                
+                # Mark sample datasets explicitly as non-user-uploaded
+                if dataset_name in sample_datasets:
+                    if dataset_name in user_uploaded_datasets:
+                        user_uploaded_datasets.remove(dataset_name)
                 
                 # Force rebuild models for this dataset to ensure we use the actual data
                 try:
@@ -399,11 +407,20 @@ async def startup_event():
         print(f"DATA_DIR: {DATA_DIR}")
         print(f"MODELS_DIR: {MODELS_DIR}")
         
+        # List of sample datasets that should always be recognized
+        sample_datasets = ["imdb_sample", "movie_reviews_sample"]
+        
         # Perform dataset scanning
         global available_datasets
         available_datasets = scan_datasets()
         print(f"Found {len(available_datasets)} datasets: {list(available_datasets.keys())}")
         
+        # Make sure we have at least one dataset by checking sample datasets
+        for sample in sample_datasets:
+            file_path = os.path.join(DATA_DIR, f"{sample}.csv")
+            if os.path.exists(file_path):
+                print(f"Found sample dataset: {sample}")
+                
         # Load default dataset if available
         if available_datasets:
             default_dataset = list(available_datasets.keys())[0]
