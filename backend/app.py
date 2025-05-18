@@ -55,6 +55,12 @@ user_uploaded_datasets = set()  # Track which datasets were uploaded by users
 DATA_DIR = os.environ.get("DATA_DIR", os.path.join(os.path.dirname(os.path.dirname(__file__)), "data"))
 MODELS_DIR = os.environ.get("MODELS_DIR", os.path.join(os.path.dirname(__file__), "models"))
 
+# Set smaller model max length to reduce memory usage
+MODEL_MAX_LENGTH = int(os.environ.get("MODEL_MAX_LENGTH", "512"))
+
+# Set TOKENIZERS_PARALLELISM to false to avoid memory issues
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
 # Create directories if they don't exist
 os.makedirs(DATA_DIR, exist_ok=True)
 os.makedirs(MODELS_DIR, exist_ok=True)
@@ -73,7 +79,7 @@ def get_search_engine(dataset_name: str, embedding_type: str = "bert", force_reb
     elif embedding_type == "word2vec":
         vectorizer = Word2VecDocumentVectorizer()
     elif embedding_type == "bert":
-        vectorizer = BERTDocumentVectorizer()
+        vectorizer = BERTDocumentVectorizer(max_length=MODEL_MAX_LENGTH)
     else:
         raise ValueError(f"Unsupported embedding type: {embedding_type}")
     
@@ -295,6 +301,10 @@ async def search(
 @app.get("/datasets")
 async def list_datasets():
     """List all available datasets."""
+    # Scan datasets if not already done
+    if not available_datasets:
+        scan_datasets()
+        
     # Add a flag to indicate which datasets were uploaded by users
     datasets_with_flags = {}
     for name, data in available_datasets.items():
@@ -391,8 +401,13 @@ async def delete_dataset(dataset_name: str):
 @app.on_event("startup")
 async def startup_event():
     """Initialize the API on startup."""
-    # Scan for available datasets
-    scan_datasets()
+    # Set lower memory usage for BERT
+    import transformers
+    transformers.logging.set_verbosity_error()
+    
+    # Don't automatically scan datasets on startup to reduce memory usage
+    # We'll scan on first request instead
+    pass
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

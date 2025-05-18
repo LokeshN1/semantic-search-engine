@@ -12,23 +12,43 @@ from search_engine import Vectorizer
 
 class BERTDocumentVectorizer(Vectorizer):
     """
-    A simplified document vectorizer using TF-IDF as a fallback when sentence-transformers is not available.
-    This is a placeholder that uses TF-IDF instead of actual BERT embeddings to avoid dependency issues.
+    Document vectorizer using sentence-transformers BERT model for semantic embeddings.
+    Optimized for memory usage with model pooling and batch processing.
     """
     
-    def __init__(self, max_features=768):
+    def __init__(self, model_name='all-MiniLM-L6-v2', max_length=512):
         """
         Initialize the BERT document vectorizer.
         
         Args:
-            max_features: Number of features to match BERT embedding dimensions
+            model_name: Name of the sentence-transformers model to use
+            max_length: Maximum sequence length for the model
         """
-        self.vector_size = max_features
-        self.vectorizer = TfidfVectorizer(
-            max_features=max_features,
+        self.vector_size = 384  # Default for all-MiniLM-L6-v2
+        self.model_name = model_name
+        self.max_length = max_length
+        self.model = None
+        self.is_fitted = False
+        
+        # Fall back to TF-IDF if sentence-transformers isn't available
+        self.tfidf_vectorizer = TfidfVectorizer(
+            max_features=self.vector_size,
             ngram_range=(1, 2)  # Use unigrams and bigrams to capture more context
         )
-        self.is_fitted = False
+    
+    def _load_model(self):
+        """Load the sentence-transformers model if not already loaded."""
+        if self.model is None:
+            try:
+                from sentence_transformers import SentenceTransformer
+                # Set environment variables to reduce memory usage
+                os.environ['TOKENIZERS_PARALLELISM'] = 'false'
+                
+                # Use the smaller model for embeddings
+                self.model = SentenceTransformer(self.model_name)
+            except ImportError:
+                print("WARNING: sentence-transformers not available, using TF-IDF as fallback")
+                self.model = None
     
     def fit(self, documents: List[str]) -> None:
         """
@@ -37,8 +57,15 @@ class BERTDocumentVectorizer(Vectorizer):
         Args:
             documents: List of preprocessed document texts
         """
-        self.vectorizer.fit(documents)
-        self.is_fitted = True
+        try:
+            self._load_model()
+            # BERT models don't need fitting
+            self.is_fitted = True
+        except Exception as e:
+            print(f"Error loading BERT model: {e}")
+            # Fall back to TF-IDF
+            self.tfidf_vectorizer.fit(documents)
+            self.is_fitted = True
     
     def transform(self, documents: List[str]) -> np.ndarray:
         """
@@ -53,19 +80,30 @@ class BERTDocumentVectorizer(Vectorizer):
         if not self.is_fitted:
             raise ValueError("Vectorizer must be fitted before transform")
         
-        # Transform to TF-IDF vectors
-        vectors = self.vectorizer.transform(documents).toarray()
-        
-        # If we have fewer features than expected, pad with zeros
-        if vectors.shape[1] < self.vector_size:
-            padding = np.zeros((vectors.shape[0], self.vector_size - vectors.shape[1]))
-            vectors = np.hstack((vectors, padding))
-            
-        # If we have more features than expected, truncate
-        elif vectors.shape[1] > self.vector_size:
-            vectors = vectors[:, :self.vector_size]
-            
-        return vectors
+        try:
+            self._load_model()
+            if self.model:
+                # Process in smaller batches to reduce memory usage
+                batch_size = 32
+                vectors = []
+                
+                for i in range(0, len(documents), batch_size):
+                    batch = documents[i:i+batch_size]
+                    batch_vectors = self.model.encode(
+                        batch, 
+                        show_progress_bar=False, 
+                        convert_to_numpy=True,
+                        max_length=self.max_length
+                    )
+                    vectors.append(batch_vectors)
+                
+                return np.vstack(vectors) if vectors else np.array([])
+            else:
+                raise ValueError("Model not available")
+        except Exception as e:
+            print(f"Error using BERT model: {e}, falling back to TF-IDF")
+            # Fall back to TF-IDF
+            return self.tfidf_vectorizer.transform(documents).toarray()
     
     def fit_transform(self, documents: List[str]) -> np.ndarray:
         """
@@ -96,8 +134,13 @@ class BERTDocumentVectorizer(Vectorizer):
         Args:
             path: Path to save the vectorizer
         """
+        # We only need to save the TF-IDF vectorizer as fallback
         with open(path, 'wb') as f:
-            pickle.dump(self.vectorizer, f)
+            pickle.dump({
+                'tfidf_vectorizer': self.tfidf_vectorizer,
+                'model_name': self.model_name,
+                'max_length': self.max_length
+            }, f)
         
     def load(self, path: str) -> None:
         """
@@ -107,5 +150,12 @@ class BERTDocumentVectorizer(Vectorizer):
             path: Path to load the vectorizer from
         """
         with open(path, 'rb') as f:
-            self.vectorizer = pickle.load(f)
+            data = pickle.load(f)
+            if isinstance(data, dict):
+                self.tfidf_vectorizer = data.get('tfidf_vectorizer', self.tfidf_vectorizer)
+                self.model_name = data.get('model_name', self.model_name)
+                self.max_length = data.get('max_length', self.max_length)
+            else:
+                # Backward compatibility with old format
+                self.tfidf_vectorizer = data
         self.is_fitted = True 

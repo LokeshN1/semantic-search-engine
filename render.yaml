@@ -5,8 +5,8 @@ services:
     runtime: python
     region: oregon
     plan: free
-    buildCommand: chmod +x build.sh && ./build.sh || { echo "Build failed"; exit 1; }
-    startCommand: source .venv/bin/activate && cd backend && python -m uvicorn app:app --host=0.0.0.0 --port=$PORT
+    buildCommand: chmod +x build.sh && ./build.sh
+    startCommand: source .venv/bin/activate && cd backend && python -m uvicorn app:app --host=0.0.0.0 --port=$PORT --workers=1
     envVars:
       - key: PYTHON_VERSION
         value: 3.9.12
@@ -14,6 +14,10 @@ services:
         value: ./data
       - key: PYTHONPATH
         value: /
+      - key: TRANSFORMERS_CACHE
+        value: ./backend/models/cache
+      - key: MODEL_MAX_LENGTH
+        value: 512
 
   # Frontend Streamlit service
   - type: web
