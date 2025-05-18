@@ -115,10 +115,24 @@ else:
 # Embedding model selection
 st.sidebar.markdown("---")
 st.sidebar.subheader("🧠 Search Options")
+embedding_options = ["tfidf", "word2vec"]
+embedding_help = "Choose the model to generate document embeddings. BERT is disabled on free tier."
+
+# Try to connect to API to check if BERT is enabled
+try:
+    response = requests.get(f"{API_URL}", timeout=2)
+    if response.status_code == 200:
+        api_info = response.json()
+        if api_info.get("bert_disabled") != True:  # API will add this field in future
+            embedding_options.append("bert")
+            embedding_help = "Choose the model to generate document embeddings."
+except:
+    pass  # Keep the default options if we can't connect
+
 embedding_type = st.sidebar.selectbox(
     "Embedding Model",
-    ["bert", "tfidf", "word2vec"],
-    help="Choose the model to generate document embeddings."
+    embedding_options,
+    help=embedding_help
 )
 
 # Number of results

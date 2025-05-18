@@ -6,7 +6,7 @@ services:
     region: oregon
     plan: free
     buildCommand: chmod +x build.sh && ./build.sh
-    startCommand: cd backend && uvicorn app:app --host=0.0.0.0 --port=$PORT
+    startCommand: cd backend && gunicorn -w 1 -k uvicorn.workers.UvicornWorker --timeout 180 app:app --bind 0.0.0.0:$PORT --log-level debug
     healthCheckPath: /
     autoDeploy: true
     buildFilter:
@@ -24,6 +24,14 @@ services:
       - key: MODEL_CACHE_TIME
         value: 3600
       - key: PYTHON_UNBUFFERED
+        value: "1"
+      - key: WEB_CONCURRENCY
+        value: "1"
+      - key: PRELOAD_MODELS
+        value: "false"
+      - key: DISABLE_BERT
+        value: "true"
+      - key: MAX_WORKERS
         value: "1"
 
   # Frontend Streamlit service

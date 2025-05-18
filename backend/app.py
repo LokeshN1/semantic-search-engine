@@ -63,10 +63,29 @@ os.makedirs(MODELS_DIR, exist_ok=True)
 # Function to initialize search engine with selected embedding method
 def get_search_engine(dataset_name: str, embedding_type: str = "bert", force_rebuild: bool = False) -> SearchEngine:
     """Get or create a search engine for the specified dataset and embedding type."""
+    # Check if BERT is disabled (for free tier)
+    disable_bert = os.environ.get("DISABLE_BERT", "false").lower() == "true"
+    if disable_bert and embedding_type == "bert":
+        print("BERT disabled by environment variable, using TF-IDF instead")
+        embedding_type = "tfidf"
+    
     cache_key = f"{dataset_name}_{embedding_type}"
     
     if cache_key in search_engines and not force_rebuild:
         return search_engines[cache_key]
+    
+    # Check environment variable to see if we should preload models
+    # If false, we'll lazily load models when needed
+    preload_models = os.environ.get("PRELOAD_MODELS", "true").lower() == "true"
+    
+    # In deployment on smaller instances, we might want to delay loading the BERT model
+    if embedding_type == "bert" and not preload_models and not force_rebuild:
+        # For initial deployment health checks, return a lightweight dummy engine
+        if dataset_name == "minimal_sample" and not cache_key in search_engines:
+            print(f"Using lightweight TF-IDF for {dataset_name} instead of BERT for initial startup")
+            temp_key = f"{dataset_name}_tfidf"
+            if temp_key in search_engines:
+                return search_engines[temp_key]
     
     # Create the vectorizer based on the embedding type
     if embedding_type == "tfidf":
@@ -143,21 +162,30 @@ def scan_datasets():
             file_path = os.path.join(DATA_DIR, file)
             
             try:
-                df = pd.read_csv(file_path) if file.endswith('.csv') else pd.read_json(file_path)
-                record_count = len(df)
+                # Just read the header and a few rows to get column info without loading entire dataset
+                if file.endswith('.csv'):
+                    df = pd.read_csv(file_path, nrows=10)
+                else:
+                    df = pd.read_json(file_path, lines=True, nrows=10)
+                
+                # Count rows but don't load full dataframe in memory
+                with open(file_path, 'r') as f:
+                    if file.endswith('.csv'):
+                        # Skip header row
+                        f.readline()
+                        record_count = sum(1 for line in f)
+                    else:
+                        record_count = sum(1 for line in f)
+                
                 available_datasets[dataset_name] = {
                     "file": file,
                     "record_count": record_count,
                     "columns": list(df.columns)
                 }
                 
-                # Force rebuild models for this dataset to ensure we use the actual data
-                try:
-                    for embedding_type in ["tfidf", "word2vec", "bert"]:
-                        get_search_engine(dataset_name, embedding_type, force_rebuild=True)
-                except Exception as e:
-                    print(f"Error initializing search engines for {dataset_name}: {str(e)}")
-                    
+                # For free tier, DON'T preload and rebuild models during startup
+                # We'll load them on-demand when a search happens
+                
             except Exception as e:
                 print(f"Error reading dataset {file}: {str(e)}")
     
@@ -167,10 +195,13 @@ def scan_datasets():
 @app.get("/")
 async def root():
     """API root endpoint with information about the API."""
+    disable_bert = os.environ.get("DISABLE_BERT", "false").lower() == "true"
+    
     return {
         "name": "Semantic Search Engine API",
         "version": "1.0.0",
         "status": "healthy",
+        "bert_disabled": disable_bert,
         "endpoints": [
             {"path": "/search", "method": "GET", "description": "Search documents"},
             {"path": "/datasets", "method": "GET", "description": "List available datasets"},
@@ -191,6 +222,12 @@ async def search(
     """
     Search documents using the semantic search engine.
     """
+    # Check if BERT is disabled (for free tier)
+    disable_bert = os.environ.get("DISABLE_BERT", "false").lower() == "true"
+    if disable_bert and embedding == "bert":
+        print("BERT disabled by environment variable, using TF-IDF instead")
+        embedding = "tfidf"
+    
     if dataset not in available_datasets and dataset != "default":
         raise HTTPException(status_code=404, detail=f"Dataset '{dataset}' not found")
     
@@ -392,9 +429,24 @@ async def delete_dataset(dataset_name: str):
 
 @app.on_event("startup")
 async def startup_event():
-    """Initialize the API on startup."""
-    # Scan for available datasets
-    scan_datasets()
+    """Initialize the application on startup."""
+    try:
+        print("Starting application initialization...")
+        print(f"DATA_DIR: {DATA_DIR}")
+        print(f"MODELS_DIR: {MODELS_DIR}")
+        
+        # Only scan for dataset metadata without loading or building models
+        global available_datasets
+        available_datasets = scan_datasets()
+        print(f"Found {len(available_datasets)} datasets: {list(available_datasets.keys())}")
+        
+        # Skip preloading models entirely for free tier
+        print("Skipping model preloading to conserve memory")
+        print("Application initialization completed successfully!")
+    except Exception as e:
+        print(f"Critical error during startup: {str(e)}")
+        traceback.print_exc()
+        # Continue anyway to allow manual troubleshooting
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
