@@ -42,10 +42,11 @@ app = FastAPI(
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*", "https://search-engine-frontend.onrender.com", "http://localhost:8501"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"]
 )
 
 # Global variables to store search engines
@@ -54,6 +55,7 @@ available_datasets = {}
 user_uploaded_datasets = set()  # Track which datasets were uploaded by users
 DATA_DIR = os.environ.get("DATA_DIR", os.path.join(os.path.dirname(os.path.dirname(__file__)), "data"))
 MODELS_DIR = os.environ.get("MODELS_DIR", os.path.join(os.path.dirname(__file__), "models"))
+MODEL_CACHE_TIME = int(os.environ.get("MODEL_CACHE_TIME", 3600))  # Default: 1 hour
 
 # Create directories if they don't exist
 os.makedirs(DATA_DIR, exist_ok=True)
@@ -136,6 +138,9 @@ def scan_datasets():
     global available_datasets
     
     available_datasets = {}
+    # List of preset sample datasets that should be recognized but not be deletable
+    sample_datasets = ["imdb_sample", "movie_reviews_sample"]
+    
     for file in os.listdir(DATA_DIR):
         if file.endswith('.csv') or file.endswith('.json'):
             dataset_name = os.path.splitext(file)[0]
@@ -149,6 +154,11 @@ def scan_datasets():
                     "record_count": record_count,
                     "columns": list(df.columns)
                 }
+                
+                # Mark sample datasets explicitly as non-user-uploaded
+                if dataset_name in sample_datasets:
+                    if dataset_name in user_uploaded_datasets:
+                        user_uploaded_datasets.remove(dataset_name)
                 
                 # Force rebuild models for this dataset to ensure we use the actual data
                 try:
@@ -169,6 +179,7 @@ async def root():
     return {
         "name": "Semantic Search Engine API",
         "version": "1.0.0",
+        "status": "healthy",
         "endpoints": [
             {"path": "/search", "method": "GET", "description": "Search documents"},
             {"path": "/datasets", "method": "GET", "description": "List available datasets"},
@@ -390,9 +401,53 @@ async def delete_dataset(dataset_name: str):
 
 @app.on_event("startup")
 async def startup_event():
-    """Initialize the API on startup."""
-    # Scan for available datasets
-    scan_datasets()
+    """Initialize the application on startup."""
+    try:
+        print("Starting application initialization...")
+        print(f"DATA_DIR: {DATA_DIR}")
+        print(f"MODELS_DIR: {MODELS_DIR}")
+        
+        # List of sample datasets that should always be recognized
+        sample_datasets = ["imdb_sample", "movie_reviews_sample"]
+        
+        # Perform dataset scanning
+        global available_datasets
+        available_datasets = scan_datasets()
+        print(f"Found {len(available_datasets)} datasets: {list(available_datasets.keys())}")
+        
+        # Make sure we have at least one dataset by checking sample datasets
+        for sample in sample_datasets:
+            file_path = os.path.join(DATA_DIR, f"{sample}.csv")
+            if os.path.exists(file_path):
+                print(f"Found sample dataset: {sample}")
+                
+        # Load default dataset if available
+        if available_datasets:
+            default_dataset = list(available_datasets.keys())[0]
+            print(f"Preloading default dataset: {default_dataset}")
+            # Don't force rebuild during startup to make it faster
+            for embedding_type in ["tfidf", "bert"]:
+                try:
+                    get_search_engine(default_dataset, embedding_type, force_rebuild=False)
+                    print(f"Successfully loaded {embedding_type} model for {default_dataset}")
+                except Exception as e:
+                    print(f"Error loading {embedding_type} model: {str(e)}")
+                    traceback.print_exc()
+        print("Application initialization completed successfully!")
+    except Exception as e:
+        print(f"Critical error during startup: {str(e)}")
+        traceback.print_exc()
+        # Continue anyway to allow manual troubleshooting
+
+# Add a debug endpoint
+@app.get("/debug")
+async def debug():
+    """Debug endpoint to test API connectivity."""
+    return {
+        "status": "ok",
+        "message": "API connection successful",
+        "timestamp": time.time()
+    }
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

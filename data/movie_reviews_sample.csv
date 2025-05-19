@@ -1,21 +1,21 @@
 id,review,sentiment
-1,"This movie is a masterpiece. The acting, direction, and cinematography are top-notch.",positive
-2,I've never been so bored watching a film. Complete waste of time and money.,negative
-3,The plot twists kept me engaged throughout the entire movie. Highly recommended!,positive
-4,"While the concept is interesting, the execution falls flat. Poor character development.",negative
-5,A beautiful story with strong performances. The soundtrack perfectly complements each scene.,positive
-6,The dialogue is cringe-worthy and the special effects look cheap. Disappointing.,negative
-7,An emotional rollercoaster that stays with you long after watching. Incredible storytelling.,positive
-8,This is easily one of the worst films I've seen this year. Confusing plot and bad acting.,negative
-9,A refreshing take on a classic genre. The director's vision shines through every frame.,positive
-10,I couldn't connect with any of the characters. The pacing was too slow and tedious.,negative
-11,An absolute must-watch that deserves all the critical acclaim it has received.,positive
-12,The movie tries to be clever but ends up being pretentious and overly complicated.,negative
-13,Brilliant performances by the entire cast. Each scene is meticulously crafted.,positive
-14,I kept checking my watch throughout the movie. Nothing interesting happens.,negative
-15,A powerful narrative that tackles important social issues while remaining entertaining.,positive
-16,The plot holes are so massive you could drive a truck through them. Illogical mess.,negative
-17,The director's attention to detail is evident in every scene. Visually stunning.,positive
-18,Predictable from start to finish with clichéd dialogue and one-dimensional characters.,negative
-19,A heartwarming story that reminds us of the importance of family and community.,positive
-20,This movie doesn't know what it wants to be. Inconsistent tone and messy storyline.,negative
+2,"The product arrived damaged and customer service was unhelpful when I tried to get a replacement.",negative
+3,"I found the book to be neither particularly engaging nor boring, just average.",neutral
+4,"The restaurant's ambiance was lovely but the food was mediocre and overpriced.",negative
+5,"This smartphone exceeded all my expectations with its battery life and camera quality.",positive
+6,"The concert was absolutely incredible, best live performance I've ever seen!",positive
+7,"The hotel room was clean but the walls were thin and I could hear everything in the next room.",neutral
+8,"I was disappointed with how quickly the product broke after just a few uses.",negative
+9,"The online course provided clear explanations and valuable practical exercises.",positive
+10,"The vacation package was not worth the money; many promised amenities were unavailable.",negative
+11,"The software is intuitive and has streamlined our entire workflow process.",positive
+12,"Despite the hype, the movie was predictable and the characters were poorly developed.",negative
+13,"The gym has decent equipment but gets too crowded during peak hours.",neutral
+14,"This recipe turned out perfectly and my whole family loved it!",positive
+15,"The delivery was quick but the item didn't match the description on the website.",negative
+16,"The workshop was informative and the presenter was engaging and knowledgeable.",positive
+17,"The new update completely ruined the app's functionality and user interface.",negative
+18,"The hiking trail offered stunning views but was more challenging than advertised.",neutral
+19,"This is the best customer service I have experienced in years, truly exceptional.",positive
+20,"The textbook contains numerous errors and outdated information.",negative
+

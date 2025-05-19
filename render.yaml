@@ -6,14 +6,31 @@ services:
     region: oregon
     plan: free
     buildCommand: chmod +x build.sh && ./build.sh
-    startCommand: cd backend && uvicorn app:app --host=0.0.0.0 --port=$PORT
+    startCommand: cd backend && gunicorn -w 1 -k uvicorn.workers.UvicornWorker --timeout 180 app:app --bind 0.0.0.0:$PORT --log-level debug
+    healthCheckPath: /
+    autoDeploy: true
+    buildFilter:
+      paths:
+        - backend/**
+        - build.sh
+        - requirements-deploy.txt
     envVars:
       - key: PYTHON_VERSION
         value: 3.9.12
       - key: DATA_DIR
         value: ./data
       - key: PYTHONPATH
-        value: /
+        value: .
+      - key: MODEL_CACHE_TIME
+        value: 3600
+      - key: PYTHON_UNBUFFERED
+        value: "1"
+      - key: WEB_CONCURRENCY
+        value: "1"
+      - key: PRELOAD_MODELS
+        value: "true"
+      - key: MAX_WORKERS
+        value: "1"
 
   # Frontend Streamlit service
   - type: web
@@ -23,6 +40,11 @@ services:
     plan: free
     buildCommand: pip install -r requirements-deploy.txt
     startCommand: cd frontend && streamlit run streamlit_app.py --server.port=$PORT --server.address=0.0.0.0
+    autoDeploy: true
+    buildFilter:
+      paths:
+        - frontend/**
+        - requirements-deploy.txt
     envVars:
       - key: PYTHON_VERSION
         value: 3.9.12
@@ -31,3 +53,7 @@ services:
           type: web
           name: search-engine-api
           envVarKey: RENDER_EXTERNAL_URL
+      - key: STREAMLIT_SERVER_MAX_UPLOAD_SIZE
+        value: 20
+      - key: STREAMLIT_SERVER_HEADLESS
+        value: "true"

@@ -4,13 +4,15 @@ import pandas as pd
 import os
 import sys
 import time
-from urllib.parse import urljoin
 
 # Add backend directory to path for imports if running directly
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-# API Base URL - use environment variable if available
-API_URL = os.environ.get("API_URL", "http://localhost:8000")
+# Initialize session state
+if 'upload_success' not in st.session_state:
+    st.session_state.upload_success = False
+if 'delete_success' not in st.session_state:
+    st.session_state.delete_success = False
 
 # ------------------ Page Configuration ------------------
 st.set_page_config(
@@ -20,21 +22,80 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+# One-time refresh handler
+refresh_handler = """
+<script>
+    // Check if we need to reload the page only once
+    document.addEventListener('DOMContentLoaded', function() {
+        if (sessionStorage.getItem('refresh_required')) {
+            // Clear the flag immediately to prevent multiple refreshes
+            sessionStorage.removeItem('refresh_required');
+        }
+        
+        // Auto-hide success messages after 5 seconds
+        setTimeout(function() {
+            // Find all success message elements and hide them
+            var successElements = document.querySelectorAll('.stSuccess');
+            successElements.forEach(function(element) {
+                element.style.opacity = '0';
+                setTimeout(function() { 
+                    element.style.display = 'none'; 
+                }, 1000);
+            });
+        }, 5000);  // 5 seconds
+    });
+</script>
+"""
+st.markdown(refresh_handler, unsafe_allow_html=True)
+
+# API Base URL - use environment variable if available, with fallbacks
+API_URL = os.environ.get("API_URL", "https://search-engine-api-gx3x.onrender.com")
+
+# For local development
+if API_URL.lower() == "local" or API_URL.lower() == "localhost":
+    API_URL = "http://localhost:8000"
+
+# Remove trailing slash if present
+if API_URL.endswith('/'):
+    API_URL = API_URL[:-1]
+
+# Show what URL we're using (debug only)
+api_debug = st.empty()
+
 # ------------------ Sidebar Section ------------------
 st.sidebar.title("🔍 Search Engine Controls")
 
 
 def check_api_connection():
-    try:
-        response = requests.get(f"{API_URL}", timeout=2)
-        return response.status_code == 200
-    except requests.RequestException:
-        return False
+    global API_URL  # Declare the global variable at the beginning of the function
+    
+    # Hard-coded backend URL - use both the environment variable and explicit URL
+    backends = [
+        API_URL,  # Try environment variable first
+        "https://search-engine-api-gx3x.onrender.com",  # Explicit URL as fallback
+        "http://localhost:8000"  # Local development fallback
+    ]
+    
+    for backend_url in backends:
+        try:
+            # st.toast(f"Trying to connect to {backend_url}...")
+            response = requests.get(f"{backend_url}", timeout=5)
+            if response.status_code == 200:
+                # If successful, update the global API_URL to the working URL
+                API_URL = backend_url
+                return True
+        except requests.RequestException as e:
+            st.toast(f"Connection error: {str(e)[:50]}...")
+            continue
+    
+    return False
 
 # API Connection Check
-if not check_api_connection():
+connection_status = check_api_connection()
+if not connection_status:
     st.sidebar.error("❌ Cannot connect to API server.")
-    st.sidebar.info("Make sure to run the server:\n\ncd backend && uvicorn app:app --reload")
+    st.sidebar.info(f"Tried connecting to: {API_URL}")
+    st.sidebar.info("Make sure both services are deployed correctly on Render")
     st.stop()
 else:
     # Create a persistent success message
@@ -44,31 +105,39 @@ else:
 # Fetch available datasets
 def get_available_datasets():
     try:
-        response = requests.get(urljoin(API_URL, "/datasets"))
+        endpoint = f"{API_URL}/datasets"
+        response = requests.get(endpoint)
         if response.status_code == 200:
             return response.json().get("datasets", {})
         else:
             return {}
-    except:
+    except Exception as e:
+        st.toast(f"Error fetching datasets: {str(e)[:50]}...")
         return {}
 
-def refresh_datasets():
-    try:
-        response = requests.post(urljoin(API_URL, "/datasets/rescan"))
-        if response.status_code == 200:
-            st.sidebar.success("✅ Datasets refreshed successfully!")
-            st.rerun()
-        else:
-            st.sidebar.error("❌ Failed to refresh datasets")
-    except Exception as e:
-        st.sidebar.error(f"❌ Error refreshing datasets: {e}")
+
 
 def delete_dataset(dataset_name):
     try:
-        response = requests.delete(urljoin(API_URL, f"/dataset/{dataset_name}"))
+        # Confirm we're deleting the right dataset
+        endpoint = f"{API_URL}/dataset/{dataset_name}"
+        
+        # First check if this dataset exists and is user-uploaded
+        check_endpoint = f"{API_URL}/dataset/{dataset_name}/is-user-uploaded"
+        check_response = requests.get(check_endpoint)
+        
+        if check_response.status_code != 200 or not check_response.json().get("user_uploaded", False):
+            st.sidebar.error(f"❌ Cannot delete dataset '{dataset_name}'. Only user-uploaded datasets can be deleted.")
+            return
+        
+        # If it's confirmed to be a user-uploaded dataset, proceed with deletion
+        response = requests.delete(endpoint)
+        
         if response.status_code == 200:
-            st.sidebar.success(f"✅ Dataset '{dataset_name}' deleted successfully!")
-            st.rerun()
+            # Set delete success state instead of refreshing immediately
+            st.session_state.delete_success = True
+            st.session_state.deleted_dataset_name = dataset_name
+            st.rerun()  # Just to show the success message
         else:
             error_msg = response.json().get("detail", "Unknown error")
             st.sidebar.error(f"❌ Delete failed: {error_msg}")
@@ -77,17 +146,29 @@ def delete_dataset(dataset_name):
 
 # Dataset Section
 st.sidebar.markdown("---")
-col1, col2 = st.sidebar.columns([3, 1])
-with col1:
-    st.markdown("### 🗂️ Datasets")
-with col2:
-    if st.button("🔄", help="Refresh dataset list"):
-        refresh_datasets()
+st.sidebar.subheader("🗂️ Datasets")
+
+# Show delete success message if there was a recent deletion
+if st.session_state.get('delete_success', False):
+    st.sidebar.success(f"✅ Dataset '{st.session_state.deleted_dataset_name}' deleted successfully!")
+    # Provide a manual refresh button
+    if st.sidebar.button("🔄 Refresh Dataset List"):
+        html_reload = """
+        <script>
+            window.location.href = window.location.href;
+        </script>
+        """
+        st.markdown(html_reload, unsafe_allow_html=True)
+    # Reset delete success state after displaying
+    st.session_state.delete_success = False
 
 # Get the datasets
 available_datasets = get_available_datasets()
 dataset_options = list(available_datasets.keys())
 
+
+
+# Dataset selection
 if dataset_options:
     selected_dataset = st.sidebar.selectbox(
         "Select Dataset",
@@ -100,10 +181,12 @@ if dataset_options:
     
     # Only show delete button for user-uploaded datasets
     if is_user_uploaded:
-        if st.sidebar.button("🗑️ Delete Selected Dataset"):
-            delete_dataset(selected_dataset)
+        delete_col1, delete_col2 = st.sidebar.columns([3, 2])
+        with delete_col2:
+            if st.button("🗑️ Delete", help=f"Delete {selected_dataset}"):
+                delete_dataset(selected_dataset)
     else:
-        st.sidebar.info("Sample datasets are not deletable")
+        st.sidebar.caption("ℹ️ Sample dataset (cannot be deleted)")
 else:
     st.sidebar.warning("⚠️ No datasets available. Upload a dataset first.")
     selected_dataset = None
@@ -111,11 +194,14 @@ else:
 # Embedding model selection
 st.sidebar.markdown("---")
 st.sidebar.subheader("🧠 Search Options")
-embedding_type = st.sidebar.selectbox(
-    "Embedding Model",
-    ["bert", "tfidf", "word2vec"],
-    help="Choose the model to generate document embeddings."
-)
+
+search_col1, search_col2 = st.sidebar.columns([3, 1])
+with search_col1:
+    embedding_type = st.selectbox(
+        "Embedding Model",
+        ["bert", "tfidf", "word2vec"],
+        help="Choose the model to generate document embeddings."
+    )
 
 # Number of results
 top_n = st.sidebar.slider(
@@ -129,29 +215,53 @@ top_n = st.sidebar.slider(
 st.sidebar.markdown("---")
 st.sidebar.subheader("⬆️ Upload New Dataset")
 
-uploaded_file = st.sidebar.file_uploader("Upload a CSV or JSON file", type=["csv", "json"])
-dataset_name = st.sidebar.text_input("Dataset Name (alphanumeric)", "")
+# Show success message outside the form if there was a recent upload
+if st.session_state.get('upload_success', False):
+    st.sidebar.success(f"✅ Dataset '{st.session_state.last_uploaded_dataset}' uploaded successfully!")
+    # Provide a manual refresh button outside the form
+    if st.sidebar.button("🔄 Refresh Dataset List"):
+        html_reload = """
+        <script>
+            window.location.href = window.location.href;
+        </script>
+        """
+        st.markdown(html_reload, unsafe_allow_html=True)
+    # Reset success state after displaying
+    st.session_state.upload_success = False
 
-if uploaded_file and st.sidebar.button("Upload Dataset"):
-    if not dataset_name.isalnum():
-        st.sidebar.error("Dataset name must be alphanumeric only!")
-    else:
-        try:
-            files = {"file": uploaded_file}
-            data = {"dataset_name": dataset_name}
+# Always show the upload form
+with st.sidebar.form("upload_form"):
+    uploaded_file = st.file_uploader("Upload CSV or JSON", type=["csv", "json"])
+    dataset_name = st.text_input("Dataset Name (alphanumeric)")
+    submit_button = st.form_submit_button("Upload Dataset")
+    
+    if submit_button:
+        if not uploaded_file:
+            st.error("❌ Please select a file to upload")
+        elif not dataset_name:
+            st.error("❌ Please enter a dataset name")
+        elif not dataset_name.isalnum():
+            st.error("❌ Dataset name must be alphanumeric only!")
+        else:
+            try:
+                files = {"file": uploaded_file}
+                data = {"dataset_name": dataset_name}
+                
+                endpoint = f"{API_URL}/upload"
 
-            with st.spinner("Uploading..."):
-                upload_response = requests.post(urljoin(API_URL, "/upload"), files=files, data=data)
+                with st.spinner("Uploading..."):
+                    upload_response = requests.post(endpoint, files=files, data=data)
 
-            if upload_response.status_code == 200:
-                st.sidebar.success(f"✅ Dataset '{dataset_name}' uploaded successfully!")
-                st.rerun()
-            else:
-                error_msg = upload_response.json().get("detail", "Unknown error")
-                st.sidebar.error(f"❌ Upload failed: {error_msg}")
-
-        except Exception as e:
-            st.sidebar.error(f"Error uploading dataset: {e}")
+                if upload_response.status_code == 200:
+                    # Set success state and refresh to show success message
+                    st.session_state.upload_success = True
+                    st.session_state.last_uploaded_dataset = dataset_name
+                    st.rerun()  # Just to show success message
+                else:
+                    error_msg = upload_response.json().get("detail", "Unknown error")
+                    st.error(f"❌ Upload failed: {error_msg}")
+            except Exception as e:
+                st.error(f"Error uploading dataset: {e}")
 
 # ------------------ Main Content Section ------------------
 st.title("🔍 Semantic Search Engine")
@@ -170,7 +280,9 @@ if st.button("Search", disabled=not selected_dataset) and query:
                 "embedding": embedding_type,
                 "top_n": top_n
             }
-            response = requests.get(urljoin(API_URL, "/search"), params=params)
+            
+            endpoint = f"{API_URL}/search"
+            response = requests.get(endpoint, params=params)
 
             if response.status_code == 200:
                 result_data = response.json()
