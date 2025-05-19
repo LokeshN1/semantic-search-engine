@@ -50,6 +50,7 @@ Thumbs.db
 !/data/.gitkeep
 !/data/imdb_sample.csv
 !/data/movie_reviews_sample.csv
+!/data/images
 
 # Model files and large binaries
 *.pkl
