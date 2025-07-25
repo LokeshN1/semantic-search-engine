@@ -2,6 +2,9 @@
 
 A powerful semantic search engine using various embedding techniques (BERT, TF-IDF, Word2Vec) to search through document collections based on meaning rather than keywords.
 
+### Architechture
+![Architecture](/data/images/SemanticSearchEngineArchiteture.png)
+
 ## Screenshots
 
 ### Main Interface
@@ -73,20 +76,9 @@ This project is configured for deployment on Render with a separate backend API 
 
 ### Important Note About Free Instance
 
-The search engine for this project is hosted on Render's free tier, which comes with a few constraints:
+The search engine for this project is hosted on Render's free tier, which comes with a constraints:
 
-
-- **Sleep Mode**: Free instances spin down after 15 minutes of inactivity
-- **Cold Start**: First request after sleep mode may take 30-60 seconds to respond
-- **Connection Issues**: You might occasionally see "Cannot connect to API server" error
-  - This is normal and usually resolves itself within a minute
-  - Simply refresh the page if you encounter this error
-  - For production use, consider upgrading to a paid instance
-
-To minimize these issues:
-1. Wait a few seconds after the first load
-2. Refresh the page if you see connection errors
-3. Consider running the application locally for development
+It can take 2-3minutes to load the website.
 
 
 
