@@ -43,9 +43,11 @@ app = FastAPI(
 )
 
 # Add CORS middleware
+API_FRONTEND_URL = os.environ.get("API_FRONTEND_URL")
+API_URL = os.environ.get("API_URL")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*", "https://search-engine-frontend.onrender.com", "http://localhost:8501"],
+    allow_origins=[API_FRONTEND_URL, API_URL],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
