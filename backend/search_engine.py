@@ -4,6 +4,9 @@ import numpy as np
 from typing import List, Dict, Any, Tuple, Optional
 import pickle
 from abc import ABC, abstractmethod
+from dotenv import load_dotenv
+# Load environment variables from .env file
+load_dotenv()
 
 # Data preprocessing
 import re

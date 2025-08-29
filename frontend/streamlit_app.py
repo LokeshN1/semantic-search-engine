@@ -4,6 +4,10 @@ import pandas as pd
 import os
 import sys
 import time
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Add backend directory to path for imports if running directly
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
@@ -48,15 +52,11 @@ refresh_handler = """
 """
 st.markdown(refresh_handler, unsafe_allow_html=True)
 
-# API Base URL - use environment variable if available, with fallbacks
-API_URL = os.environ.get("API_URL", "https://search-engine-api-gx3x.onrender.com")
-
-# For local development
-if API_URL.lower() == "local" or API_URL.lower() == "localhost":
-    API_URL = "http://localhost:8000"
+# API Base URL - use environment variable
+API_URL = os.environ.get("API_URL")
 
 # Remove trailing slash if present
-if API_URL.endswith('/'):
+if API_URL and API_URL.endswith('/'):
     API_URL = API_URL[:-1]
 
 # Show what URL we're using (debug only)
@@ -67,35 +67,21 @@ st.sidebar.title("🔍 Search Engine Controls")
 
 
 def check_api_connection():
-    global API_URL  # Declare the global variable at the beginning of the function
-    
-    # Hard-coded backend URL - use both the environment variable and explicit URL
-    backends = [
-        API_URL,  # Try environment variable first
-        "https://search-engine-api-gx3x.onrender.com",  # Explicit URL as fallback
-        "http://localhost:8000"  # Local development fallback
-    ]
-    
-    for backend_url in backends:
-        try:
-            # st.toast(f"Trying to connect to {backend_url}...")
-            response = requests.get(f"{backend_url}", timeout=5)
-            if response.status_code == 200:
-                # If successful, update the global API_URL to the working URL
-                API_URL = backend_url
-                return True
-        except requests.RequestException as e:
-            st.toast(f"Connection error: {str(e)[:50]}...")
-            continue
-    
-    return False
+    """Checks if the backend API is reachable."""
+    if not API_URL:
+        return False
+    try:
+        response = requests.get(f"{API_URL}", timeout=5)
+        return response.status_code == 200
+    except requests.RequestException:
+        return False
 
 # API Connection Check
 connection_status = check_api_connection()
 if not connection_status:
     st.sidebar.error("❌ Cannot connect to API server.")
-    st.sidebar.info(f"Tried connecting to: {API_URL}")
-    st.sidebar.info("Make sure both services are deployed correctly on Render")
+    st.sidebar.info(f"Attempted to connect to: {API_URL}")
+    st.sidebar.info("Ensure the backend is running and the API_URL is set correctly in your .env file.")
     st.stop()
 else:
     # Create a persistent success message
@@ -104,6 +90,7 @@ else:
 
 # Fetch available datasets
 def get_available_datasets():
+    """Fetches the list of datasets from the backend API."""
     try:
         endpoint = f"{API_URL}/datasets"
         response = requests.get(endpoint)
@@ -118,6 +105,7 @@ def get_available_datasets():
 
 
 def delete_dataset(dataset_name):
+    """Sends a request to the backend to delete a dataset."""
     try:
         # Confirm we're deleting the right dataset
         endpoint = f"{API_URL}/dataset/{dataset_name}"
@@ -244,19 +232,20 @@ with st.sidebar.form("upload_form"):
             st.error("❌ Dataset name must be alphanumeric only!")
         else:
             try:
-                files = {"file": uploaded_file}
+                files = {"file": (uploaded_file.name, uploaded_file.getvalue(), uploaded_file.type)}
                 data = {"dataset_name": dataset_name}
                 
                 endpoint = f"{API_URL}/upload"
 
-                with st.spinner("Uploading..."):
+                with st.spinner("Uploading and processing... This may take a moment."):
                     upload_response = requests.post(endpoint, files=files, data=data)
 
                 if upload_response.status_code == 200:
-                    # Set success state and refresh to show success message
                     st.session_state.upload_success = True
                     st.session_state.last_uploaded_dataset = dataset_name
-                    st.rerun()  # Just to show success message
+                    
+                    # Rerun the app to display the success message and refresh button
+                    st.rerun()
                 else:
                     error_msg = upload_response.json().get("detail", "Unknown error")
                     st.error(f"❌ Upload failed: {error_msg}")

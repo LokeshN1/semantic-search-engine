@@ -5,6 +5,9 @@ import pickle
 import numpy as np
 import shutil
 from pathlib import Path
+from dotenv import load_dotenv
+# Load environment variables from .env file
+load_dotenv()
 
 # Add the current directory to path for imports
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -18,7 +21,7 @@ except Exception as e:
     print(f"Error downloading NLTK data: {str(e)}")
 
 # Clean models directory to ensure fresh initialization
-MODELS_DIR = os.path.join(os.path.dirname(__file__), "models")
+MODELS_DIR = os.environ.get("MODELS_DIR", "./backend/models")
 print(f"Cleaning models directory: {MODELS_DIR}")
 if os.path.exists(MODELS_DIR):
     # Remove existing models
@@ -37,7 +40,7 @@ from embeddings import TfidfDocumentVectorizer, BERTDocumentVectorizer, Word2Vec
 from search_engine import TextProcessor
 
 # Path to the data directory
-DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
+DATA_DIR = os.environ.get("DATA_DIR", "./data")
 
 def initialize_embedding_model(model_type, dataset_name="imdb_sample"):
     """Initialize an embedding model and create placeholder files if needed."""

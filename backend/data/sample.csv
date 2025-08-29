@@ -1,0 +1,21 @@
+id,review,sentiment
+2,"The product arrived damaged and customer service was unhelpful when I tried to get a replacement.",negative
+3,"I found the book to be neither particularly engaging nor boring, just average.",neutral
+4,"The restaurant's ambiance was lovely but the food was mediocre and overpriced.",negative
+5,"This smartphone exceeded all my expectations with its battery life and camera quality.",positive
+6,"The concert was absolutely incredible, best live performance I've ever seen!",positive
+7,"The hotel room was clean but the walls were thin and I could hear everything in the next room.",neutral
+8,"I was disappointed with how quickly the product broke after just a few uses.",negative
+9,"The online course provided clear explanations and valuable practical exercises.",positive
+10,"The vacation package was not worth the money; many promised amenities were unavailable.",negative
+11,"The software is intuitive and has streamlined our entire workflow process.",positive
+12,"Despite the hype, the movie was predictable and the characters were poorly developed.",negative
+13,"The gym has decent equipment but gets too crowded during peak hours.",neutral
+14,"This recipe turned out perfectly and my whole family loved it!",positive
+15,"The delivery was quick but the item didn't match the description on the website.",negative
+16,"The workshop was informative and the presenter was engaging and knowledgeable.",positive
+17,"The new update completely ruined the app's functionality and user interface.",negative
+18,"The hiking trail offered stunning views but was more challenging than advertised.",neutral
+19,"This is the best customer service I have experienced in years, truly exceptional.",positive
+20,"The textbook contains numerous errors and outdated information.",negative
+
