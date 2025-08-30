@@ -17,8 +17,12 @@ RUN python -m nltk.downloader punkt stopwords wordnet
 # Copy the rest of your application code into the container
 COPY . .
 
+# IMPORTANT: Fix line endings in the entrypoint script
+RUN sed -i 's/\r$//' ./entrypoint.sh
+
 # Make the entrypoint script executable
 RUN chmod +x ./entrypoint.sh
 
 # Set the entrypoint script as the container's startup command
 ENTRYPOINT ["./entrypoint.sh"]
+
