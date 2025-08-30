@@ -20,4 +20,4 @@ RUN python -m nltk.downloader punkt stopwords wordnet
 COPY . .
 
 # Your start command from the Procfile. Railway will inject the $PORT.
-CMD ["gunicorn", "-w", "1", "-k", "uvicorn.workers.UvicornWorker", "--timeout", "180", "backend.app:app", "--bind", "0.0.0.0:$PORT"]
+CMD gunicorn -w 1 -k uvicorn.workers.UvicornWorker --timeout 180 backend.app:app --bind 0.0.0.0:$PORT
